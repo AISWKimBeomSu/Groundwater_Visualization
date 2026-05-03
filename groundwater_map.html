@@ -4,713 +4,242 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>서울시 유출지하수 구별 발생 현황 지도</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root {
-    --bg: #060a14;
-    --panel: #0c1626;
-    --panel2: #0f1f35;
-    --border: #1a3050;
-    --accent1: #00d4ff;
-    --accent2: #00ff9d;
-    --accent3: #ff6b35;
-    --accent4: #c77dff;
-    --accent5: #ffd166;
-    --text: #e8f4fd;
-    --text-dim: #6b8fa8;
-    --text-mid: #a8c5da;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family: 'Noto Sans KR', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);
-    background-size:50px 50px;
-    pointer-events:none; z-index:0;
-  }
-  .wrapper { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; }
-
-  /* HEADER */
-  header {
-    padding:14px 28px;
-    border-bottom:1px solid var(--border);
-    background:linear-gradient(180deg,rgba(0,212,255,0.05) 0%,transparent 100%);
-    display:flex; align-items:center; justify-content:space-between;
-    flex-shrink:0;
-  }
-  .header-left { display:flex; align-items:center; gap:14px; }
-  .logo-mark {
-    width:38px; height:38px;
-    border:1.5px solid var(--accent1);
-    border-radius:7px;
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Space Mono',monospace; font-size:9px; color:var(--accent1);
-    box-shadow:0 0 14px rgba(0,212,255,0.2); text-align:center; line-height:1.3;
-    animation:pulse 3s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%,100%{box-shadow:0 0 14px rgba(0,212,255,0.2);}
-    50%{box-shadow:0 0 24px rgba(0,212,255,0.4);}
-  }
-  .header-title h1 { font-size:16px; font-weight:700; }
-  .header-title p { font-size:10px; color:var(--text-dim); font-family:'Space Mono',monospace; margin-top:2px; }
-  .header-right { display:flex; align-items:center; gap:16px; }
-  .live-badge { display:flex; align-items:center; gap:6px; font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); }
-  .live-dot { width:6px;height:6px;background:var(--accent2);border-radius:50%;box-shadow:0 0 6px var(--accent2);animation:blink 1.5s infinite; }
-  @keyframes blink { 0%,100%{opacity:1;}50%{opacity:.2;} }
-
-  /* MODE TOGGLE */
-  .mode-btns { display:flex; gap:0; background:var(--panel2); border:1px solid var(--border); border-radius:7px; overflow:hidden; }
-  .mode-btn {
-    padding:6px 14px; font-size:11px; font-weight:500; cursor:pointer;
-    color:var(--text-dim); transition:all .2s; white-space:nowrap;
-  }
-  .mode-btn.active { background:rgba(0,212,255,0.15); color:var(--accent1); }
-  .mode-btn:hover:not(.active) { color:var(--text-mid); }
-
-  /* BODY LAYOUT */
-  .body { display:flex; flex:1; overflow:hidden; }
-
-  /* LEFT SIDEBAR */
-  .sidebar {
-    width:300px; flex-shrink:0;
-    border-right:1px solid var(--border);
-    overflow-y:auto; overflow-x:hidden;
-    padding:16px;
-    display:flex; flex-direction:column; gap:12px;
-  }
-  .sidebar::-webkit-scrollbar { width:4px; }
-  .sidebar::-webkit-scrollbar-track { background:transparent; }
-  .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
-  .sidebar-section-title {
-    font-size:10px; font-weight:600; letter-spacing:0.8px;
-    color:var(--text-dim); text-transform:uppercase;
-    font-family:'Space Mono',monospace;
-    padding-bottom:8px; border-bottom:1px solid var(--border);
-  }
-
-  /* FILTER PILLS */
-  .filter-pills { display:flex; flex-wrap:wrap; gap:6px; }
-  .pill {
-    padding:4px 11px; border-radius:20px; font-size:11px; font-weight:500;
-    cursor:pointer; transition:all .2s; border:1px solid transparent;
-    user-select:none;
-  }
-  .pill-subway { background:rgba(153,51,204,.15); color:#c77dff; border-color:rgba(153,51,204,.3); }
-  .pill-building { background:rgba(0,255,157,.1); color:#00ff9d; border-color:rgba(0,255,157,.2); }
-  .pill-cable { background:rgba(0,212,255,.1); color:#00d4ff; border-color:rgba(0,212,255,.2); }
-  .pill-elec { background:rgba(255,107,53,.1); color:#ff6b35; border-color:rgba(255,107,53,.2); }
-  .pill-total { background:rgba(255,209,102,.12); color:#ffd166; border-color:rgba(255,209,102,.25); }
-  .pill.inactive { opacity:.35; filter:grayscale(.7); }
-  .pill:hover { transform:scale(1.05); }
-
-  /* LEGEND */
-  .legend-bar {
-    height:12px; border-radius:6px;
-    background:linear-gradient(90deg,#0a1a2e,#0d3a5e,#0e5c8a,#0d7db5,#00a8e8,#00d4ff,#7fffff);
-    margin:6px 0;
-  }
-  .legend-labels { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:9px; color:var(--text-dim); }
-
-  /* RANKING LIST */
-  .rank-list { display:flex; flex-direction:column; gap:0; }
-  .rank-item {
-    display:flex; align-items:center; gap:8px;
-    padding:7px 6px; border-bottom:1px solid rgba(26,48,80,.4);
-    cursor:pointer; transition:background .15s; border-radius:4px;
-  }
-  .rank-item:hover { background:rgba(0,212,255,.05); }
-  .rank-item.selected { background:rgba(0,212,255,.1); }
-  .rank-num {
-    font-family:'Space Mono',monospace; font-size:10px; font-weight:700;
-    width:18px; text-align:center; flex-shrink:0;
-  }
-  .rank-name { font-size:12px; flex:1; }
-  .rank-bar-wrap { width:60px; flex-shrink:0; }
-  .rank-bar { height:3px; border-radius:2px; margin-bottom:3px; }
-  .rank-val { font-family:'Space Mono',monospace; font-size:9px; color:var(--text-dim); text-align:right; }
-
-  /* TOOLTIP PANEL */
-  .detail-panel {
-    background:var(--panel2); border:1px solid var(--border); border-radius:8px;
-    padding:14px; display:none;
-  }
-  .detail-panel.show { display:block; }
-  .detail-gu-name { font-size:16px; font-weight:700; margin-bottom:10px; }
-  .detail-total { font-family:'Space Mono',monospace; font-size:20px; font-weight:700; color:var(--accent1); margin-bottom:12px; }
-  .detail-total span { font-size:11px; color:var(--text-dim); }
-  .detail-rows { display:flex; flex-direction:column; gap:6px; }
-  .detail-row { display:flex; align-items:center; gap:8px; }
-  .detail-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
-  .detail-label { font-size:11px; color:var(--text-mid); flex:1; }
-  .detail-val { font-family:'Space Mono',monospace; font-size:11px; font-weight:600; }
-  .detail-mini-bar { height:3px; border-radius:2px; margin-top:2px; }
-
-  .chart-mini { margin-top:12px; height:80px; position:relative; }
-
-  /* MAP AREA */
-  .map-area { flex:1; position:relative; overflow:hidden; }
-  #map-svg-wrap {
-    width:100%; height:100%;
-    display:flex; align-items:center; justify-content:center;
-    position:relative;
-  }
-
-  /* SVG MAP STYLES */
-  .gu-path {
-    stroke:#1a3050;
-    stroke-width:1.5;
-    cursor:pointer;
-    transition:filter .2s, stroke .2s, stroke-width .2s;
-  }
-  .gu-path:hover {
-    stroke:#00d4ff !important;
-    stroke-width:2.5 !important;
-    filter:brightness(1.4) drop-shadow(0 0 8px rgba(0,212,255,.5)) !important;
-  }
-  .gu-path.selected {
-    stroke:#ffd166 !important;
-    stroke-width:2.5 !important;
-    filter:brightness(1.3) drop-shadow(0 0 10px rgba(255,209,102,.5)) !important;
-  }
-
-  /* GU LABEL */
-  .gu-label {
-    font-family:'Noto Sans KR',sans-serif;
-    font-size:9.5px;
-    font-weight:600;
-    fill:#e8f4fd;
-    pointer-events:none;
-    text-anchor:middle;
-    dominant-baseline:middle;
-    text-shadow:0 1px 3px rgba(0,0,0,.8);
-    paint-order:stroke;
-    stroke:#060a14;
-    stroke-width:2.5px;
-  }
-
-  /* BUBBLE OVERLAY */
-  .bubble-circle {
-    opacity:.75;
-    cursor:pointer;
-    transition:opacity .2s, r .2s;
-  }
-  .bubble-circle:hover { opacity:1; }
-
-  /* TOOLTIP */
-  #map-tooltip {
-    position:absolute; pointer-events:none;
-    background:rgba(10,20,36,.95); border:1px solid var(--accent1);
-    border-radius:8px; padding:12px 14px; z-index:100;
-    font-size:12px; min-width:200px;
-    box-shadow:0 4px 24px rgba(0,212,255,.2);
-    display:none;
-  }
-  #map-tooltip .tt-name { font-size:14px; font-weight:700; margin-bottom:8px; }
-  #map-tooltip .tt-total { font-family:'Space Mono',monospace; font-size:16px; color:var(--accent1); font-weight:700; margin-bottom:8px; }
-  #map-tooltip .tt-row { display:flex; justify-content:space-between; gap:12px; margin-bottom:3px; font-size:11px; }
-  #map-tooltip .tt-label { color:var(--text-mid); }
-  #map-tooltip .tt-val { font-family:'Space Mono',monospace; font-weight:600; color:var(--text); }
-
-  /* SCALE BAR */
-  .map-overlays {
-    position:absolute; bottom:16px; right:16px;
-    display:flex; flex-direction:column; align-items:flex-end; gap:8px;
-  }
-  .compass {
-    width:36px;height:36px;
-    background:rgba(10,20,36,.8); border:1px solid var(--border);
-    border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-size:11px; font-weight:700; color:var(--accent1);
-    font-family:'Space Mono',monospace;
-  }
-  .scale-note {
-    background:rgba(10,20,36,.8); border:1px solid var(--border);
-    border-radius:5px; padding:4px 10px;
-    font-family:'Space Mono',monospace; font-size:9px; color:var(--text-dim);
-  }
-
-  /* STACKED BAR TICKS */
-  .map-title-overlay {
-    position:absolute; top:14px; left:14px;
-    background:rgba(6,10,20,.85); border:1px solid var(--border);
-    border-radius:7px; padding:10px 14px;
-  }
-  .mto-label { font-size:11px; font-weight:600; color:var(--text-mid); margin-bottom:4px; }
-  .mto-mode { font-size:10px; font-family:'Space Mono',monospace; color:var(--accent1); }
-
-  /* TOP BAR CHART ON MAP */
-  .map-rank-overlay {
-    position:absolute; top:14px; right:14px;
-    background:rgba(6,10,20,.88); border:1px solid var(--border);
-    border-radius:7px; padding:10px 14px; width:200px;
-  }
-  .mro-title { font-size:10px; color:var(--text-dim); font-family:'Space Mono',monospace; margin-bottom:8px; }
-  .mro-row { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
-  .mro-name { font-size:10px; width:48px; flex-shrink:0; color:var(--text-mid); }
-  .mro-bar { height:5px; border-radius:3px; flex:1; }
-  .mro-val { font-family:'Space Mono',monospace; font-size:9px; color:var(--text-dim); width:38px; text-align:right; }
+  :root{--bg:#060a14;--panel:#0c1626;--panel2:#0f1f35;--border:#1a3050;--accent1:#00d4ff;--accent2:#00ff9d;--accent3:#ff6b35;--accent4:#c77dff;--accent5:#ffd166;--text:#e8f4fd;--text-dim:#6b8fa8;--text-mid:#a8c5da;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0;}
+  .wrapper{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;}
+  header{padding:12px 24px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,212,255,0.05) 0%,transparent 100%);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .logo{width:36px;height:36px;border:1.5px solid var(--accent1);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:8px;color:var(--accent1);text-align:center;line-height:1.3;animation:pulse 3s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 14px rgba(0,212,255,0.2);}50%{box-shadow:0 0 24px rgba(0,212,255,0.4);}}
+  .header-left{display:flex;align-items:center;gap:12px;}
+  .header-title h1{font-size:15px;font-weight:700;}
+  .header-title p{font-size:10px;color:var(--text-dim);font-family:'Space Mono',monospace;margin-top:1px;}
+  .header-right{display:flex;align-items:center;gap:12px;}
+  .mode-btns{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+  .mode-btn{padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;color:var(--text-dim);transition:all .2s;white-space:nowrap;}
+  .mode-btn.active{background:rgba(0,212,255,0.15);color:var(--accent1);}
+  .live-badge{display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:10px;color:var(--accent2);}
+  .live-dot{width:6px;height:6px;background:var(--accent2);border-radius:50%;animation:blink 1.5s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+  .data-badge{background:rgba(0,255,157,0.1);border:1px solid rgba(0,255,157,0.2);border-radius:5px;padding:3px 10px;font-size:10px;color:var(--accent2);font-family:'Space Mono',monospace;}
+  .body{display:flex;flex:1;overflow:hidden;}
+  .sidebar{width:290px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;}
+  .sidebar::-webkit-scrollbar{width:4px;}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .sec-title{font-size:10px;font-weight:600;letter-spacing:.8px;color:var(--text-dim);text-transform:uppercase;font-family:'Space Mono',monospace;padding-bottom:7px;border-bottom:1px solid var(--border);}
+  .legend-bar{height:10px;border-radius:5px;margin:6px 0;}
+  .legend-labels{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--text-dim);}
+  .detail-panel{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px;display:none;}
+  .detail-panel.show{display:block;}
+  .dp-name{font-size:15px;font-weight:700;margin-bottom:6px;}
+  .dp-total{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--accent1);margin-bottom:10px;}
+  .dp-total span{font-size:10px;color:var(--text-dim);}
+  .dp-row{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+  .dp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .dp-label{font-size:11px;color:var(--text-mid);flex:1;}
+  .dp-val{font-family:'Space Mono',monospace;font-size:11px;font-weight:600;}
+  .dp-bar{height:3px;border-radius:2px;margin:2px 0 5px 14px;}
+  .chart-mini{margin-top:10px;height:75px;position:relative;}
+  .rank-list{display:flex;flex-direction:column;}
+  .rank-item{display:flex;align-items:center;gap:7px;padding:6px 5px;border-bottom:1px solid rgba(26,48,80,.4);cursor:pointer;transition:background .15s;border-radius:4px;}
+  .rank-item:hover{background:rgba(0,212,255,.05);}
+  .rank-item.selected{background:rgba(0,212,255,.1);}
+  .rank-num{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;width:16px;text-align:center;flex-shrink:0;}
+  .rank-name{font-size:11px;flex:1;}
+  .rank-bar-wrap{width:55px;flex-shrink:0;}
+  .rank-bar{height:3px;border-radius:2px;margin-bottom:2px;}
+  .rank-val{font-family:'Space Mono',monospace;font-size:9px;color:var(--text-dim);text-align:right;}
+  .map-area{flex:1;position:relative;overflow:hidden;}
+  #map-svg-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;}
+  .gu-path{stroke:#1a3050;stroke-width:1.2;cursor:pointer;transition:filter .2s,stroke .2s,stroke-width .2s;}
+  .gu-path:hover{stroke:#00d4ff!important;stroke-width:2.5!important;filter:brightness(1.4) drop-shadow(0 0 8px rgba(0,212,255,.5))!important;}
+  .gu-path.selected{stroke:#ffd166!important;stroke-width:2.5!important;filter:brightness(1.3) drop-shadow(0 0 10px rgba(255,209,102,.5))!important;}
+  .gu-label{font-family:'Noto Sans KR',sans-serif;font-size:9px;font-weight:600;fill:#e8f4fd;pointer-events:none;text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:#060a14;stroke-width:2.5px;}
+  .gu-val{font-family:'Space Mono',monospace;font-size:7px;fill:rgba(232,244,253,0.6);pointer-events:none;text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:#060a14;stroke-width:2px;}
+  #map-tooltip{position:absolute;pointer-events:none;background:rgba(8,16,30,.96);border:1px solid var(--accent1);border-radius:8px;padding:11px 13px;z-index:100;font-size:12px;min-width:195px;box-shadow:0 4px 24px rgba(0,212,255,.2);display:none;}
+  .tt-name{font-size:13px;font-weight:700;margin-bottom:6px;}
+  .tt-total{font-family:'Space Mono',monospace;font-size:15px;color:var(--accent1);font-weight:700;margin-bottom:7px;}
+  .tt-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:2px;font-size:11px;}
+  .tt-label{color:var(--text-mid);}
+  .tt-val{font-family:'Space Mono',monospace;font-weight:600;}
+  .map-title-overlay{position:absolute;top:12px;left:12px;background:rgba(6,10,20,.88);border:1px solid var(--border);border-radius:7px;padding:9px 13px;}
+  .mto-label{font-size:11px;font-weight:600;color:var(--text-mid);margin-bottom:3px;}
+  .mto-mode{font-size:10px;font-family:'Space Mono',monospace;color:var(--accent1);}
+  .map-rank-overlay{position:absolute;top:12px;right:12px;background:rgba(6,10,20,.9);border:1px solid var(--border);border-radius:7px;padding:10px 13px;width:195px;}
+  .mro-title{font-size:10px;color:var(--text-dim);font-family:'Space Mono',monospace;margin-bottom:7px;}
+  .mro-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+  .mro-name{font-size:10px;width:44px;flex-shrink:0;color:var(--text-mid);}
+  .mro-bar{height:4px;border-radius:2px;}
+  .mro-val{font-family:'Space Mono',monospace;font-size:9px;color:var(--text-dim);margin-left:auto;white-space:nowrap;}
+  .map-overlays{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;}
+  .compass{width:32px;height:32px;background:rgba(10,20,36,.85);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent1);font-family:'Space Mono',monospace;}
+  .scale-note{background:rgba(10,20,36,.85);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-family:'Space Mono',monospace;font-size:9px;color:var(--text-dim);}
+  .accuracy-badge{position:absolute;bottom:14px;left:14px;background:rgba(10,20,36,.88);border:1px solid rgba(0,255,157,0.25);border-radius:6px;padding:7px 11px;}
+  .acc-row{display:flex;gap:7px;align-items:center;margin-bottom:3px;font-size:10px;font-family:'Space Mono',monospace;}
+  .acc-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
 </style>
 </head>
 <body>
 <div class="wrapper">
-
 <header>
   <div class="header-left">
-    <div class="logo-mark">GW<br>MAP</div>
+    <div class="logo">GW<br>MAP</div>
     <div class="header-title">
-      <h1>서울시 유출지하수 발생 현황 — 구별 지도</h1>
-      <p>SEOUL GROUNDWATER OUTFLOW · CHOROPLETH MAP · 2025 상반기</p>
+      <h1>서울시 유출지하수 발생 현황 — 구별 지도 (정확도 개선)</h1>
+      <p>SEOUL GROUNDWATER OUTFLOW · DONG/FACILITY NAME GEOCODING · 2025 상반기</p>
     </div>
   </div>
   <div class="header-right">
+    <div class="data-badge">전력구 100% · 통신구 100% · 건축물 95%</div>
     <div class="mode-btns">
-      <div class="mode-btn active" onclick="setMode('total',this)">전체 합산</div>
+      <div class="mode-btn active" onclick="setMode('total',this)">전체</div>
       <div class="mode-btn" onclick="setMode('subway',this)">지하철</div>
       <div class="mode-btn" onclick="setMode('building',this)">건축물</div>
-      <div class="mode-btn" onclick="setMode('cable',this)">통신구</div>
       <div class="mode-btn" onclick="setMode('elec',this)">전력구</div>
+      <div class="mode-btn" onclick="setMode('cable',this)">통신구</div>
     </div>
-    <div class="live-badge"><div class="live-dot"></div>2025 / 상반기</div>
+    <div class="live-badge"><div class="live-dot"></div>2025 상반기</div>
   </div>
 </header>
-
 <div class="body">
-
-  <!-- SIDEBAR -->
   <div class="sidebar">
-    <!-- Legend -->
     <div>
-      <div class="sidebar-section-title">발생량 범례</div>
-      <div style="margin-top:8px">
-        <div class="legend-bar" id="legend-bar"></div>
-        <div class="legend-labels">
-          <span>0</span>
-          <span id="legend-mid"></span>
-          <span id="legend-max"></span>
-        </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:5px;font-family:'Space Mono',monospace">단위: 톤 (2025년 상반기 누계)</div>
-      </div>
+      <div class="sec-title">발생량 범례</div>
+      <div class="legend-bar" id="legend-bar"></div>
+      <div class="legend-labels"><span>0</span><span id="legend-mid"></span><span id="legend-max"></span></div>
+      <div style="font-size:9px;color:var(--text-dim);margin-top:4px;font-family:'Space Mono',monospace">단위: 톤 / 2025년 상반기 누계</div>
     </div>
-
-    <!-- Detail Panel -->
     <div class="detail-panel" id="detail-panel">
-      <div class="detail-gu-name" id="dp-name">—</div>
-      <div class="detail-total" id="dp-total">—<span> 톤</span></div>
-      <div class="detail-rows">
-        <div class="detail-row">
-          <div class="detail-dot" style="background:#9933CC"></div>
-          <div class="detail-label">지하철</div>
-          <div class="detail-val" id="dp-subway" style="color:#c77dff">—</div>
-        </div>
-        <div style="padding-left:16px;margin-top:-4px;margin-bottom:2px">
-          <div class="detail-mini-bar" id="dp-bar-subway" style="background:#9933CC;width:0%"></div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-dot" style="background:#00ff9d"></div>
-          <div class="detail-label">건축물</div>
-          <div class="detail-val" id="dp-building" style="color:#00ff9d">—</div>
-        </div>
-        <div style="padding-left:16px;margin-top:-4px;margin-bottom:2px">
-          <div class="detail-mini-bar" id="dp-bar-building" style="background:#00ff9d;width:0%"></div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-dot" style="background:#00d4ff"></div>
-          <div class="detail-label">통신구</div>
-          <div class="detail-val" id="dp-cable" style="color:#00d4ff">—</div>
-        </div>
-        <div style="padding-left:16px;margin-top:-4px;margin-bottom:2px">
-          <div class="detail-mini-bar" id="dp-bar-cable" style="background:#00d4ff;width:0%"></div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-dot" style="background:#ff6b35"></div>
-          <div class="detail-label">전력구</div>
-          <div class="detail-val" id="dp-elec" style="color:#ff6b35">—</div>
-        </div>
-        <div style="padding-left:16px;margin-top:-4px;margin-bottom:2px">
-          <div class="detail-mini-bar" id="dp-bar-elec" style="background:#ff6b35;width:0%"></div>
-        </div>
-      </div>
-      <div class="chart-mini">
-        <canvas id="detail-chart"></canvas>
-      </div>
+      <div class="dp-name" id="dp-name"></div>
+      <div class="dp-total" id="dp-total"></div>
+      <div class="dp-row"><div class="dp-dot" style="background:#9933CC"></div><div class="dp-label">지하철</div><div class="dp-val" id="dp-s" style="color:#c77dff"></div></div>
+      <div class="dp-bar" id="db-s" style="background:#9933CC"></div>
+      <div class="dp-row"><div class="dp-dot" style="background:#00ff9d"></div><div class="dp-label">건축물</div><div class="dp-val" id="dp-b" style="color:#00ff9d"></div></div>
+      <div class="dp-bar" id="db-b" style="background:#00ff9d"></div>
+      <div class="dp-row"><div class="dp-dot" style="background:#ff6b35"></div><div class="dp-label">전력구</div><div class="dp-val" id="dp-e" style="color:#ff6b35"></div></div>
+      <div class="dp-bar" id="db-e" style="background:#ff6b35"></div>
+      <div class="dp-row"><div class="dp-dot" style="background:#00d4ff"></div><div class="dp-label">통신구</div><div class="dp-val" id="dp-c" style="color:#00d4ff"></div></div>
+      <div class="dp-bar" id="db-c" style="background:#00d4ff"></div>
+      <div class="chart-mini"><canvas id="detail-chart"></canvas></div>
     </div>
-
-    <!-- Ranking -->
     <div>
-      <div class="sidebar-section-title">구별 발생량 순위</div>
+      <div class="sec-title">구별 발생량 순위</div>
       <div class="rank-list" id="rank-list"></div>
     </div>
   </div>
-
-  <!-- MAP -->
   <div class="map-area">
     <div id="map-svg-wrap">
-      <!-- SVG MAP INJECTED BY JS -->
       <svg id="seoul-map" viewBox="0 0 900 780" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;max-height:100vh"></svg>
-
-      <!-- Tooltip -->
       <div id="map-tooltip">
-        <div class="tt-name" id="tt-name">—</div>
-        <div class="tt-total" id="tt-total">—</div>
-        <div class="tt-row"><span class="tt-label">🚇 지하철</span><span class="tt-val" id="tt-subway">—</span></div>
-        <div class="tt-row"><span class="tt-label">🏢 건축물</span><span class="tt-val" id="tt-building">—</span></div>
-        <div class="tt-row"><span class="tt-label">📡 통신구</span><span class="tt-val" id="tt-cable">—</span></div>
-        <div class="tt-row"><span class="tt-label">⚡ 전력구</span><span class="tt-val" id="tt-elec">—</span></div>
+        <div class="tt-name" id="tt-name"></div>
+        <div class="tt-total" id="tt-total"></div>
+        <div class="tt-row"><span class="tt-label">🚇 지하철</span><span class="tt-val" id="tt-s"></span></div>
+        <div class="tt-row"><span class="tt-label">🏢 건축물</span><span class="tt-val" id="tt-b"></span></div>
+        <div class="tt-row"><span class="tt-label">⚡ 전력구</span><span class="tt-val" id="tt-e"></span></div>
+        <div class="tt-row"><span class="tt-label">📡 통신구</span><span class="tt-val" id="tt-c"></span></div>
       </div>
-
-      <!-- Map overlays -->
       <div class="map-title-overlay">
         <div class="mto-label" id="mto-label">전체 시설 유출지하수 발생량</div>
         <div class="mto-mode" id="mto-mode">MODE: TOTAL</div>
       </div>
-
       <div class="map-rank-overlay">
         <div class="mro-title">TOP 7 자치구</div>
         <div id="mro-rows"></div>
       </div>
-
       <div class="map-overlays">
         <div class="compass">N</div>
         <div class="scale-note">서울시 25개 자치구</div>
       </div>
+      <div class="accuracy-badge">
+        <div class="acc-row"><div class="acc-dot" style="background:#ff6b35"></div><span style="color:#ff6b35">전력구 424건 100% 매핑</span></div>
+        <div class="acc-row"><div class="acc-dot" style="background:#00d4ff"></div><span style="color:#00d4ff">통신구 192건 100% 매핑</span></div>
+        <div class="acc-row"><div class="acc-dot" style="background:#00ff9d"></div><span style="color:#00ff9d">건축물 320/337건 95% 매핑</span></div>
+      </div>
     </div>
   </div>
-
 </div>
 </div>
-
-<!-- tooltip -->
-
 <script>
-// =================== DATA ===================
-const GU_DATA = {
-  "종로구": {"subway":1791190,"building":107800,"cable":116009,"elec":0,"total":2014999},
-  "중구":   {"subway":1609441,"building":297518,"cable":113078,"elec":0,"total":2020037},
-  "용산구": {"subway":905008,"building":443660,"cable":116291,"elec":0,"total":1464959},
-  "성동구": {"subway":3153263,"building":629580,"cable":123128,"elec":0,"total":3905971},
-  "광진구": {"subway":106992,"building":45250,"cable":74786,"elec":0,"total":227028},
-  "동대문구":{"subway":227361,"building":18607,"cable":1338498,"elec":0,"total":1584466},
-  "중랑구": {"subway":357283,"building":0,"cable":0,"elec":0,"total":357283},
-  "성북구": {"subway":4554913,"building":57389,"cable":929415,"elec":0,"total":5541717},
-  "강북구": {"subway":178560,"building":2150,"cable":0,"elec":0,"total":180710},
-  "도봉구": {"subway":54681,"building":0,"cable":323520,"elec":0,"total":378201},
-  "노원구": {"subway":2826114,"building":0,"cable":0,"elec":0,"total":2826114},
-  "은평구": {"subway":2033744,"building":0,"cable":19710,"elec":0,"total":2053454},
-  "서대문구":{"subway":337113,"building":0,"cable":373267,"elec":0,"total":710380},
-  "마포구": {"subway":2319571,"building":0,"cable":0,"elec":0,"total":2319571},
-  "양천구": {"subway":46892,"building":0,"cable":0,"elec":0,"total":46892},
-  "강서구": {"subway":1640906,"building":0,"cable":0,"elec":0,"total":1640906},
-  "구로구": {"subway":1145252,"building":0,"cable":262800,"elec":0,"total":1408052},
-  "금천구": {"subway":81016,"building":0,"cable":0,"elec":0,"total":81016},
-  "영등포구":{"subway":2428075,"building":0,"cable":0,"elec":20619,"total":2448694},
-  "동작구": {"subway":1681599,"building":0,"cable":115148,"elec":0,"total":1796747},
-  "관악구": {"subway":716718,"building":0,"cable":362080,"elec":122007,"total":1200805},
-  "서초구": {"subway":4707536,"building":0,"cable":0,"elec":0,"total":4707536},
-  "강남구": {"subway":6755916,"building":0,"cable":0,"elec":0,"total":6755916},
-  "송파구": {"subway":2485145,"building":0,"cable":0,"elec":0,"total":2485145},
-  "강동구": {"subway":1583853,"building":48945,"cable":0,"elec":0,"total":1632798}
-};
-
-// =================== SEOUL SVG PATHS ===================
-// Approximate SVG paths for 25 Seoul districts (viewBox 0 0 900 780)
-// Coordinates derived from Seoul's geographic shape
-const GU_PATHS = {
-  "도봉구":   "M 390 30 L 450 25 L 500 45 L 510 80 L 475 90 L 440 85 L 410 70 Z",
-  "노원구":   "M 500 45 L 570 30 L 620 55 L 630 110 L 580 125 L 530 115 L 510 80 Z",
-  "강북구":   "M 390 30 L 440 85 L 420 120 L 385 130 L 360 110 L 350 80 Z",
-  "은평구":   "M 260 70 L 350 80 L 385 130 L 365 175 L 320 180 L 270 160 L 240 120 Z",
-  "성북구":   "M 440 85 L 510 80 L 530 115 L 520 160 L 480 175 L 440 165 L 415 145 L 420 120 Z",
-  "중랑구":   "M 530 115 L 580 125 L 600 165 L 570 195 L 535 185 L 520 160 Z",
-  "서대문구": "M 260 160 L 320 180 L 330 215 L 305 240 L 265 235 L 240 205 L 245 175 Z",
-  "종로구":   "M 320 180 L 365 175 L 415 145 L 440 165 L 450 200 L 420 235 L 385 245 L 345 235 L 330 215 Z",
-  "동대문구": "M 480 175 L 520 160 L 535 185 L 545 220 L 510 235 L 475 225 L 465 200 Z",
-  "마포구":   "M 220 210 L 265 235 L 305 240 L 310 280 L 280 305 L 240 295 L 210 265 L 200 235 Z",
-  "중구":     "M 345 235 L 385 245 L 420 235 L 450 200 L 465 200 L 475 225 L 470 260 L 440 280 L 400 285 L 370 275 L 345 255 Z",
-  "성동구":   "M 475 225 L 510 235 L 545 220 L 565 255 L 555 290 L 520 305 L 480 295 L 465 265 L 470 260 Z",
-  "광진구":   "M 565 255 L 600 240 L 640 260 L 645 300 L 610 320 L 570 310 L 555 290 Z",
-  "용산구":   "M 310 280 L 345 255 L 370 275 L 400 285 L 420 305 L 415 340 L 380 350 L 340 340 L 315 315 Z",
-  "영등포구": "M 205 305 L 240 295 L 280 305 L 310 330 L 305 370 L 275 390 L 240 385 L 210 365 L 195 335 Z",
-  "양천구":   "M 155 305 L 205 305 L 210 365 L 195 400 L 165 405 L 140 380 L 140 345 Z",
-  "강서구":   "M 105 250 L 155 245 L 200 255 L 220 210 L 200 235 L 175 280 L 155 305 L 140 345 L 115 335 L 95 300 Z",
-  "동작구":   "M 340 340 L 380 350 L 415 340 L 440 365 L 430 405 L 400 415 L 360 410 L 330 385 L 325 360 Z",
-  "구로구":   "M 210 365 L 240 385 L 275 390 L 295 420 L 275 450 L 240 455 L 210 435 L 195 405 Z",
-  "관악구":   "M 305 370 L 340 365 L 330 385 L 360 410 L 360 445 L 325 460 L 295 455 L 275 430 L 275 390 L 305 370 Z",
-  "서초구":   "M 415 340 L 440 280 L 470 260 L 480 295 L 520 305 L 535 340 L 530 390 L 500 415 L 460 420 L 430 405 L 440 365 Z",
-  "금천구":   "M 240 455 L 275 450 L 295 455 L 310 485 L 290 510 L 255 510 L 235 485 Z",
-  "강남구":   "M 520 305 L 555 290 L 570 310 L 600 330 L 610 380 L 590 420 L 555 435 L 515 435 L 500 415 L 530 390 L 535 340 Z",
-  "송파구":   "M 570 310 L 610 320 L 645 300 L 670 330 L 670 390 L 640 420 L 610 430 L 590 420 L 610 380 L 600 330 Z",
-  "강동구":   "M 640 260 L 680 255 L 720 270 L 720 320 L 700 355 L 670 370 L 645 355 L 640 420 L 640 420 L 670 390 L 670 330 L 645 300 Z"
-};
-
-// Centroids for labels
-const GU_CENTROIDS = {
-  "도봉구":   [445, 60],  "노원구":   [563, 82],  "강북구":   [393, 100],
-  "은평구":   [307, 127], "성북구":   [476, 130], "중랑구":   [557, 155],
-  "서대문구": [284, 203], "종로구":   [381, 205], "동대문구": [508, 200],
-  "마포구":   [255, 258], "중구":     [408, 254], "성동구":   [510, 267],
-  "광진구":   [600, 283], "용산구":   [368, 313], "영등포구": [252, 344],
-  "양천구":   [170, 357], "강서구":   [150, 295], "동작구":   [385, 383],
-  "구로구":   [242, 413], "관악구":   [316, 422], "서초구":   [488, 368],
-  "금천구":   [273, 484], "강남구":   [563, 375], "송파구":   [625, 375],
-  "강동구":   [673, 305]
-};
-
-// =================== STATE ===================
-let currentMode = 'total';
-let selectedGu = null;
-let detailChart = null;
-
-// =================== COLOR SCALE ===================
-function getColor(value, maxVal, mode) {
-  if (value === 0) return '#0a1522';
-  const t = Math.pow(value / maxVal, 0.55); // power scale for better contrast
-  const palettes = {
-    total:    [[6,10,20],[8,28,62],[12,72,130],[10,125,185],[0,168,232],[0,212,255],[120,255,245]],
-    subway:   [[10,5,25],[45,10,100],[90,30,160],[140,60,200],[180,100,230],[199,119,255],[230,180,255]],
-    building: [[5,20,10],[10,70,30],[10,120,60],[10,170,90],[0,200,120],[0,255,157],[140,255,210]],
-    cable:    [[5,18,22],[8,55,80],[10,90,135],[10,130,185],[0,170,230],[0,212,255],[120,235,255]],
-    elec:     [[22,8,4],[80,30,10],[140,55,15],[190,85,20],[230,110,30],[255,140,50],[255,200,130]]
-  };
-  const pal = palettes[mode] || palettes.total;
-  const seg = Math.min(t * (pal.length - 1), pal.length - 1.001);
-  const i = Math.floor(seg);
-  const f = seg - i;
-  const c1 = pal[i], c2 = pal[i+1];
-  const r = Math.round(c1[0] + (c2[0]-c1[0])*f);
-  const g = Math.round(c1[1] + (c2[1]-c1[1])*f);
-  const b = Math.round(c1[2] + (c2[2]-c1[2])*f);
-  return `rgb(${r},${g},${b})`;
+const GU_DATA={"종로구":{"subway":1791190,"building":211086,"elec":59351,"cable":134027,"total":2195654},"중구":{"subway":1609441,"building":504816,"elec":77968,"cable":117147,"total":2309372},"용산구":{"subway":905008,"building":485493,"elec":7598,"cable":116750,"total":1514849},"성동구":{"subway":3129813,"building":777373,"elec":294384,"cable":123128,"total":4324698},"광진구":{"subway":106992,"building":76381,"elec":0,"cable":74786,"total":258159},"동대문구":{"subway":250811,"building":223538,"elec":876440,"cable":1338498,"total":2689287},"중랑구":{"subway":357283,"building":100264,"elec":151179,"cable":0,"total":608726},"성북구":{"subway":4554876,"building":255216,"elec":1191771,"cable":929415,"total":6931278},"강북구":{"subway":178560,"building":97718,"elec":105928,"cable":2992,"total":385198},"도봉구":{"subway":54681,"building":11018,"elec":0,"cable":323520,"total":389219},"노원구":{"subway":2826151,"building":0,"elec":0,"cable":0,"total":2826151},"은평구":{"subway":2033744,"building":3457,"elec":391660,"cable":19710,"total":2448571},"서대문구":{"subway":231747,"building":0,"elec":0,"cable":416914,"total":648661},"마포구":{"subway":2424937,"building":0,"elec":243143,"cable":0,"total":2668080},"양천구":{"subway":46892,"building":0,"elec":79205,"cable":0,"total":126097},"강서구":{"subway":1640906,"building":0,"elec":56461,"cable":0,"total":1697367},"구로구":{"subway":137117,"building":0,"elec":274044,"cable":262800,"total":673961},"금천구":{"subway":81016,"building":0,"elec":32485,"cable":0,"total":113501},"영등포구":{"subway":3506300,"building":0,"elec":125677,"cable":0,"total":3631977},"동작구":{"subway":1780395,"building":0,"elec":2920,"cable":115148,"total":1898463},"관악구":{"subway":617922,"building":0,"elec":264109,"cable":362080,"total":1244111},"서초구":{"subway":4707536,"building":0,"elec":5324,"cable":0,"total":4712860},"강남구":{"subway":6755916,"building":0,"elec":4015,"cable":2462,"total":6762393},"송파구":{"subway":2485145,"building":0,"elec":3742,"cable":0,"total":2488887},"강동구":{"subway":1583853,"building":0,"elec":4541,"cable":0,"total":1588394}};
+const GU_PATHS={"도봉구":"M 390 30 L 450 25 L 500 45 L 510 80 L 475 90 L 440 85 L 410 70 Z","노원구":"M 500 45 L 570 30 L 620 55 L 630 110 L 580 125 L 530 115 L 510 80 Z","강북구":"M 390 30 L 440 85 L 420 120 L 385 130 L 360 110 L 350 80 Z","은평구":"M 260 70 L 350 80 L 385 130 L 365 175 L 320 180 L 270 160 L 240 120 Z","성북구":"M 440 85 L 510 80 L 530 115 L 520 160 L 480 175 L 440 165 L 415 145 L 420 120 Z","중랑구":"M 530 115 L 580 125 L 600 165 L 570 195 L 535 185 L 520 160 Z","서대문구":"M 260 160 L 320 180 L 330 215 L 305 240 L 265 235 L 240 205 L 245 175 Z","종로구":"M 320 180 L 365 175 L 415 145 L 440 165 L 450 200 L 420 235 L 385 245 L 345 235 L 330 215 Z","동대문구":"M 480 175 L 520 160 L 535 185 L 545 220 L 510 235 L 475 225 L 465 200 Z","마포구":"M 220 210 L 265 235 L 305 240 L 310 280 L 280 305 L 240 295 L 210 265 L 200 235 Z","중구":"M 345 235 L 385 245 L 420 235 L 450 200 L 465 200 L 475 225 L 470 260 L 440 280 L 400 285 L 370 275 L 345 255 Z","성동구":"M 475 225 L 510 235 L 545 220 L 565 255 L 555 290 L 520 305 L 480 295 L 465 265 L 470 260 Z","광진구":"M 565 255 L 600 240 L 640 260 L 645 300 L 610 320 L 570 310 L 555 290 Z","용산구":"M 310 280 L 345 255 L 370 275 L 400 285 L 420 305 L 415 340 L 380 350 L 340 340 L 315 315 Z","영등포구":"M 205 305 L 240 295 L 280 305 L 310 330 L 305 370 L 275 390 L 240 385 L 210 365 L 195 335 Z","양천구":"M 155 305 L 205 305 L 210 365 L 195 400 L 165 405 L 140 380 L 140 345 Z","강서구":"M 105 250 L 155 245 L 200 255 L 220 210 L 200 235 L 175 280 L 155 305 L 140 345 L 115 335 L 95 300 Z","동작구":"M 340 340 L 380 350 L 415 340 L 440 365 L 430 405 L 400 415 L 360 410 L 330 385 L 325 360 Z","구로구":"M 210 365 L 240 385 L 275 390 L 295 420 L 275 450 L 240 455 L 210 435 L 195 405 Z","관악구":"M 305 370 L 340 365 L 330 385 L 360 410 L 360 445 L 325 460 L 295 455 L 275 430 L 275 390 L 305 370 Z","서초구":"M 415 340 L 440 280 L 470 260 L 480 295 L 520 305 L 535 340 L 530 390 L 500 415 L 460 420 L 430 405 L 440 365 Z","금천구":"M 240 455 L 275 450 L 295 455 L 310 485 L 290 510 L 255 510 L 235 485 Z","강남구":"M 520 305 L 555 290 L 570 310 L 600 330 L 610 380 L 590 420 L 555 435 L 515 435 L 500 415 L 530 390 L 535 340 Z","송파구":"M 570 310 L 610 320 L 645 300 L 670 330 L 670 390 L 640 420 L 610 430 L 590 420 L 610 380 L 600 330 Z","강동구":"M 640 260 L 680 255 L 720 270 L 720 320 L 700 355 L 670 370 L 645 355 L 640 420 L 670 390 L 670 330 L 645 300 Z"};
+const GU_CENTROIDS={"도봉구":[445,60],"노원구":[563,82],"강북구":[393,100],"은평구":[307,127],"성북구":[476,130],"중랑구":[557,155],"서대문구":[284,203],"종로구":[381,205],"동대문구":[508,200],"마포구":[255,258],"중구":[408,254],"성동구":[510,267],"광진구":[600,283],"용산구":[368,313],"영등포구":[252,344],"양천구":[170,357],"강서구":[150,295],"동작구":[385,383],"구로구":[242,413],"관악구":[316,422],"서초구":[488,368],"금천구":[273,484],"강남구":[563,375],"송파구":[625,375],"강동구":[673,305]};
+let currentMode='total',selectedGu=null,detailChart=null;
+function getVal(gu,mode){const d=GU_DATA[gu];if(!d)return 0;return d[mode==='total'?'total':mode]||0;}
+function getMaxVal(mode){return Math.max(...Object.keys(GU_DATA).map(g=>getVal(g,mode)));}
+function getColor(value,maxVal,mode){
+  if(value===0)return '#0a1522';
+  const t=Math.pow(value/maxVal,0.5);
+  const P={total:[[6,10,20],[8,28,62],[12,72,130],[10,125,185],[0,168,232],[0,212,255],[120,255,245]],subway:[[10,5,25],[45,10,100],[90,30,160],[140,60,200],[180,100,230],[199,119,255],[230,180,255]],building:[[5,20,10],[10,70,30],[10,120,60],[10,170,90],[0,200,120],[0,255,157],[140,255,210]],elec:[[22,8,4],[80,30,10],[140,55,15],[190,85,20],[230,110,30],[255,140,50],[255,200,130]],cable:[[5,18,22],[8,55,80],[10,90,135],[10,130,185],[0,170,230],[0,212,255],[120,235,255]]};
+  const pal=P[mode]||P.total;
+  const seg=Math.min(t*(pal.length-1),pal.length-1.001),i=Math.floor(seg),f=seg-i,c1=pal[i],c2=pal[i+1];
+  return `rgb(${Math.round(c1[0]+(c2[0]-c1[0])*f)},${Math.round(c1[1]+(c2[1]-c1[1])*f)},${Math.round(c1[2]+(c2[2]-c1[2])*f)})`;
 }
-
-function getVal(gu, mode) {
-  const d = GU_DATA[gu];
-  if (!d) return 0;
-  return d[mode === 'total' ? 'total' : mode] || 0;
-}
-
-function getMaxVal(mode) {
-  return Math.max(...Object.keys(GU_DATA).map(g => getVal(g, mode)));
-}
-
-// =================== RENDER MAP ===================
-function renderMap() {
-  const svg = document.getElementById('seoul-map');
-  svg.innerHTML = '';
-  const maxVal = getMaxVal(currentMode);
-
-  // Add glow filter
-  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-  defs.innerHTML = `
-    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="glow-strong"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  `;
-  svg.appendChild(defs);
-
-  // Draw paths
-  Object.entries(GU_PATHS).forEach(([gu, pathD]) => {
-    const val = getVal(gu, currentMode);
-    const color = getColor(val, maxVal, currentMode);
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d', pathD);
-    path.setAttribute('fill', color);
-    path.setAttribute('class', 'gu-path' + (selectedGu === gu ? ' selected' : ''));
-    path.setAttribute('data-gu', gu);
-
-    path.addEventListener('mousemove', (e) => showTooltip(e, gu));
-    path.addEventListener('mouseleave', hideTooltip);
-    path.addEventListener('click', () => selectGu(gu));
-
+function fmt(v){return v>=1000000?(v/1000000).toFixed(2)+'M':v>=1000?(v/1000).toFixed(0)+'K':String(v);}
+function fmtFull(v){return v.toLocaleString()+'톤';}
+function renderMap(){
+  const svg=document.getElementById('seoul-map');svg.innerHTML='';
+  const maxVal=getMaxVal(currentMode);
+  Object.entries(GU_PATHS).forEach(([gu,pathD])=>{
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',pathD);path.setAttribute('fill',getColor(getVal(gu,currentMode),maxVal,currentMode));
+    path.setAttribute('class','gu-path'+(selectedGu===gu?' selected':''));path.setAttribute('data-gu',gu);
+    path.addEventListener('mousemove',e=>showTT(e,gu));path.addEventListener('mouseleave',hideTT);path.addEventListener('click',()=>selectGu(gu));
     svg.appendChild(path);
   });
-
-  // Draw labels
-  Object.entries(GU_CENTROIDS).forEach(([gu, [cx, cy]]) => {
-    const val = getVal(gu, currentMode);
-    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-    text.setAttribute('x', cx);
-    text.setAttribute('y', cy);
-    text.setAttribute('class','gu-label');
-    text.setAttribute('font-size', gu.length > 3 ? '8.5' : '9.5');
-    text.textContent = gu.replace('구','');
-    svg.appendChild(text);
-
-    // Value label (small)
-    if (val > 0) {
-      const vtext = document.createElementNS('http://www.w3.org/2000/svg','text');
-      vtext.setAttribute('x', cx);
-      vtext.setAttribute('y', cy + 12);
-      vtext.setAttribute('text-anchor','middle');
-      vtext.setAttribute('dominant-baseline','middle');
-      vtext.setAttribute('font-family','Space Mono,monospace');
-      vtext.setAttribute('font-size','7');
-      vtext.setAttribute('fill','rgba(232,244,253,0.65)');
-      vtext.setAttribute('paint-order','stroke');
-      vtext.setAttribute('stroke','#060a14');
-      vtext.setAttribute('stroke-width','2px');
-      vtext.setAttribute('pointer-events','none');
-      vtext.textContent = val >= 1000000 ? (val/1000000).toFixed(1)+'M' : val >= 1000 ? (val/1000).toFixed(0)+'K' : val;
-      svg.appendChild(vtext);
-    }
+  Object.entries(GU_CENTROIDS).forEach(([gu,[cx,cy]])=>{
+    const val=getVal(gu,currentMode);
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',cx);t.setAttribute('y',cy-5);t.setAttribute('class','gu-label');t.setAttribute('font-size',gu.length>3?'8':'9');t.textContent=gu.replace('구','');svg.appendChild(t);
+    if(val>0){const v=document.createElementNS('http://www.w3.org/2000/svg','text');v.setAttribute('x',cx);v.setAttribute('y',cy+7);v.setAttribute('class','gu-val');v.textContent=fmt(val);svg.appendChild(v);}
   });
-
-  // Update legend
-  updateLegend(maxVal);
-  updateRanking();
-  updateTopOverlay();
+  updateLegend(maxVal);updateRanking();updateOverlay();
 }
-
-function updateLegend(maxVal) {
-  document.getElementById('legend-max').textContent = maxVal >= 1000000 ? (maxVal/1000000).toFixed(1)+'M톤' : (maxVal/1000).toFixed(0)+'K톤';
-  document.getElementById('legend-mid').textContent = maxVal >= 1000000 ? (maxVal/2000000).toFixed(1)+'M톤' : (maxVal/2000).toFixed(0)+'K톤';
+function updateLegend(maxVal){
+  const MC={total:'linear-gradient(90deg,#0a1522,#0d3a5e,#0e5c8a,#00a8e8,#00d4ff,#7fffff)',subway:'linear-gradient(90deg,#0a0514,#2d0a64,#8020a0,#b464c8,#c777ff)',building:'linear-gradient(90deg,#051405,#0a4a1e,#0ab450,#00c878,#00ff9d)',elec:'linear-gradient(90deg,#160502,#501e0a,#a03c10,#e07018,#ff8c32)',cable:'linear-gradient(90deg,#05121a,#083750,#0a6090,#00aae6,#00d4ff)'};
+  document.getElementById('legend-bar').style.background=MC[currentMode]||MC.total;
+  document.getElementById('legend-max').textContent=fmt(maxVal)+'톤';document.getElementById('legend-mid').textContent=fmt(maxVal/2)+'톤';
 }
-
-function updateTopOverlay() {
-  const sorted = Object.entries(GU_DATA).sort((a,b)=>getVal(b[0],currentMode)-getVal(a[0],currentMode)).slice(0,7);
-  const top = sorted[0] ? getVal(sorted[0][0], currentMode) : 1;
-  const modeColors = {total:'#00d4ff',subway:'#c77dff',building:'#00ff9d',cable:'#00d4ff',elec:'#ff6b35'};
-  const col = modeColors[currentMode];
-  document.getElementById('mro-rows').innerHTML = sorted.map(([gu,d]) => {
-    const v = getVal(gu, currentMode);
-    const pct = v / top * 100;
-    const label = v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K';
-    return `<div class="mro-row">
-      <div class="mro-name">${gu}</div>
-      <div class="mro-bar" style="background:${col};width:${pct}%;opacity:.7"></div>
-      <div class="mro-val">${label}</div>
-    </div>`;
-  }).join('');
-
-  const modeLabels = {total:'전체 합산', subway:'지하철', building:'건축물', cable:'통신구', elec:'전력구'};
-  document.getElementById('mto-label').textContent = modeLabels[currentMode] + ' 유출지하수 발생량';
-  document.getElementById('mto-mode').textContent = 'MODE: ' + currentMode.toUpperCase();
+function updateOverlay(){
+  const sorted=Object.entries(GU_DATA).sort((a,b)=>getVal(b[0],currentMode)-getVal(a[0],currentMode)).slice(0,7);
+  const top=getVal(sorted[0][0],currentMode)||1;
+  const MC={total:'#00d4ff',subway:'#c77dff',building:'#00ff9d',elec:'#ff6b35',cable:'#00d4ff'};const col=MC[currentMode];
+  document.getElementById('mro-rows').innerHTML=sorted.map(([gu])=>{const v=getVal(gu,currentMode);return `<div class="mro-row"><div class="mro-name">${gu}</div><div class="mro-bar" style="background:${col};width:${Math.round(v/top*100)}%;opacity:.75;flex:1"></div><div class="mro-val">${fmt(v)}</div></div>`;}).join('');
+  const L={total:'전체 합산',subway:'지하철',building:'건축물',elec:'전력구',cable:'통신구'};
+  document.getElementById('mto-label').textContent=L[currentMode]+' 유출지하수 발생량';document.getElementById('mto-mode').textContent='MODE: '+currentMode.toUpperCase();
 }
-
-function updateRanking() {
-  const sorted = Object.entries(GU_DATA).sort((a,b)=>getVal(b[0],currentMode)-getVal(a[0],currentMode));
-  const top = getVal(sorted[0][0], currentMode);
-  const modeColors = {total:'#00d4ff',subway:'#c77dff',building:'#00ff9d',cable:'#00d4ff',elec:'#ff6b35'};
-  const col = modeColors[currentMode];
-
-  const rankColors = ['#ffd166','#00d4ff','#00ff9d'];
-
-  document.getElementById('rank-list').innerHTML = sorted.map(([gu,d], i) => {
-    const v = getVal(gu, currentMode);
-    const pct = v / top * 100;
-    const label = v >= 1000000 ? (v/1000000).toFixed(2)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v;
-    const numColor = i < 3 ? rankColors[i] : '#6b8fa8';
-    return `<div class="rank-item${selectedGu===gu?' selected':''}" onclick="selectGu('${gu}')" data-gu="${gu}">
-      <div class="rank-num" style="color:${numColor}">${i+1}</div>
-      <div class="rank-name">${gu}</div>
-      <div class="rank-bar-wrap">
-        <div class="rank-bar" style="background:${col};width:${pct}%;opacity:.7"></div>
-        <div class="rank-val">${label}</div>
-      </div>
-    </div>`;
-  }).join('');
+function updateRanking(){
+  const sorted=Object.entries(GU_DATA).sort((a,b)=>getVal(b[0],currentMode)-getVal(a[0],currentMode));
+  const top=getVal(sorted[0][0],currentMode)||1;
+  const MC={total:'#00d4ff',subway:'#c77dff',building:'#00ff9d',elec:'#ff6b35',cable:'#00d4ff'};const col=MC[currentMode];
+  const nc=['#ffd166','#00d4ff','#00ff9d'];
+  document.getElementById('rank-list').innerHTML=sorted.map(([gu],i)=>{const v=getVal(gu,currentMode);return `<div class="rank-item${selectedGu===gu?' selected':''}" onclick="selectGu('${gu}')" data-gu="${gu}"><div class="rank-num" style="color:${i<3?nc[i]:'#6b8fa8'}">${i+1}</div><div class="rank-name">${gu}</div><div class="rank-bar-wrap"><div class="rank-bar" style="background:${col};width:${Math.round(v/top*100)}%;opacity:.7"></div><div class="rank-val">${fmt(v)}</div></div></div>`;}).join('');
 }
-
-// =================== TOOLTIP ===================
-function showTooltip(e, gu) {
-  const d = GU_DATA[gu];
-  if (!d) return;
-  const tt = document.getElementById('map-tooltip');
-  document.getElementById('tt-name').textContent = gu;
-  document.getElementById('tt-total').textContent = d.total.toLocaleString() + ' 톤';
-  document.getElementById('tt-subway').textContent = d.subway.toLocaleString() + ' 톤';
-  document.getElementById('tt-building').textContent = d.building.toLocaleString() + ' 톤';
-  document.getElementById('tt-cable').textContent = d.cable.toLocaleString() + ' 톤';
-  document.getElementById('tt-elec').textContent = d.elec.toLocaleString() + ' 톤';
-  tt.style.display = 'block';
-
-  const wrap = document.getElementById('map-svg-wrap');
-  const rect = wrap.getBoundingClientRect();
-  let x = e.clientX - rect.left + 16;
-  let y = e.clientY - rect.top - 20;
-  if (x + 220 > rect.width) x = e.clientX - rect.left - 230;
-  if (y + 160 > rect.height) y = e.clientY - rect.top - 180;
-  tt.style.left = x + 'px';
-  tt.style.top = y + 'px';
+function showTT(e,gu){
+  const d=GU_DATA[gu];if(!d)return;const tt=document.getElementById('map-tooltip');
+  document.getElementById('tt-name').textContent=gu;document.getElementById('tt-total').textContent=fmtFull(d.total);
+  document.getElementById('tt-s').textContent=fmtFull(d.subway);document.getElementById('tt-b').textContent=fmtFull(d.building);document.getElementById('tt-e').textContent=fmtFull(d.elec);document.getElementById('tt-c').textContent=fmtFull(d.cable);
+  tt.style.display='block';
+  const wrap=document.getElementById('map-svg-wrap').getBoundingClientRect();let x=e.clientX-wrap.left+16,y=e.clientY-wrap.top-20;
+  if(x+210>wrap.width)x=e.clientX-wrap.left-225;if(y+160>wrap.height)y=e.clientY-wrap.top-175;
+  tt.style.left=x+'px';tt.style.top=y+'px';
 }
-function hideTooltip() {
-  document.getElementById('map-tooltip').style.display = 'none';
+function hideTT(){document.getElementById('map-tooltip').style.display='none';}
+function selectGu(gu){
+  selectedGu=selectedGu===gu?null:gu;renderMap();
+  document.querySelectorAll('.rank-item').forEach(el=>el.classList.toggle('selected',el.dataset.gu===selectedGu));
+  const dp=document.getElementById('detail-panel');if(!selectedGu){dp.classList.remove('show');return;}
+  dp.classList.add('show');const d=GU_DATA[selectedGu];
+  document.getElementById('dp-name').textContent=selectedGu;document.getElementById('dp-total').innerHTML=d.total.toLocaleString()+'<span> 톤</span>';
+  document.getElementById('dp-s').textContent=fmtFull(d.subway);document.getElementById('dp-b').textContent=fmtFull(d.building);document.getElementById('dp-e').textContent=fmtFull(d.elec);document.getElementById('dp-c').textContent=fmtFull(d.cable);
+  const t=d.total||1;['s','b','e','c'].forEach((k,i)=>{document.getElementById('db-'+k).style.width=([d.subway,d.building,d.elec,d.cable][i]/t*100)+'%';});
+  if(detailChart)detailChart.destroy();
+  detailChart=new Chart(document.getElementById('detail-chart').getContext('2d'),{type:'doughnut',data:{labels:['지하철','건축물','전력구','통신구'],datasets:[{data:[d.subway,d.building,d.elec,d.cable],backgroundColor:['#9933CC','#00ff9d','#ff6b35','#00d4ff'],borderWidth:1,borderColor:'#060a14',hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#a8c5da',font:{size:9},boxWidth:8,padding:5}},tooltip:{backgroundColor:'#0c1626',borderColor:'#1a3050',borderWidth:1,callbacks:{label:c=>` ${c.label}: ${c.parsed.toLocaleString()}톤`}}}}});
 }
-
-// =================== SELECT GU ===================
-function selectGu(gu) {
-  selectedGu = selectedGu === gu ? null : gu;
-  renderMap();
-
-  // Update ranking selection
-  document.querySelectorAll('.rank-item').forEach(el => {
-    el.classList.toggle('selected', el.dataset.gu === selectedGu);
-  });
-
-  const dp = document.getElementById('detail-panel');
-  if (!selectedGu) { dp.classList.remove('show'); return; }
-
-  dp.classList.add('show');
-  const d = GU_DATA[selectedGu];
-  document.getElementById('dp-name').textContent = selectedGu;
-  document.getElementById('dp-total').innerHTML = d.total.toLocaleString() + '<span> 톤</span>';
-  document.getElementById('dp-subway').textContent = d.subway.toLocaleString() + ' 톤';
-  document.getElementById('dp-building').textContent = d.building.toLocaleString() + ' 톤';
-  document.getElementById('dp-cable').textContent = d.cable.toLocaleString() + ' 톤';
-  document.getElementById('dp-elec').textContent = d.elec.toLocaleString() + ' 톤';
-
-  const t = d.total || 1;
-  document.getElementById('dp-bar-subway').style.width = (d.subway/t*100) + '%';
-  document.getElementById('dp-bar-building').style.width = (d.building/t*100) + '%';
-  document.getElementById('dp-bar-cable').style.width = (d.cable/t*100) + '%';
-  document.getElementById('dp-bar-elec').style.width = (d.elec/t*100) + '%';
-
-  // Mini doughnut
-  if (detailChart) detailChart.destroy();
-  const ctx = document.getElementById('detail-chart').getContext('2d');
-  detailChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['지하철','건축물','통신구','전력구'],
-      datasets: [{
-        data: [d.subway, d.building, d.cable, d.elec],
-        backgroundColor: ['#9933CC','#00ff9d','#00d4ff','#ff6b35'],
-        borderWidth: 1, borderColor: '#060a14', hoverOffset: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'right', labels: { color: '#a8c5da', font: { size: 9 }, boxWidth: 8, padding: 6 } },
-        tooltip: { backgroundColor: '#0c1626', borderColor: '#1a3050', borderWidth: 1, callbacks: {
-          label: c => ` ${c.label}: ${c.parsed.toLocaleString()}톤`
-        }}
-      }
-    }
-  });
-}
-
-// =================== MODE ===================
-function setMode(mode, btn) {
-  currentMode = mode;
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderMap();
-  if (selectedGu) selectGu(selectedGu); // refresh detail
-}
-
-// =================== INIT ===================
+function setMode(mode,btn){currentMode=mode;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderMap();if(selectedGu)selectGu(selectedGu);}
 renderMap();
 </script>
 </body>
